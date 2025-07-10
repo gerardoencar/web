@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Meteorológico - La Caleta, Santo Domingo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0d1b2a, #1b263b);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* Estilos para el mapa */
+        .location-map {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 250px;
+            height: 200px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
+            z-index: 10;
+            border: 2px solid #ff9e64;
+            transition: all 0.4s ease;
+        }
+
+        .location-map:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 30px rgba(255, 158, 100, 0.4);
+        }
+
+        .map-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(13, 27, 42, 0.9);
+            padding: 12px;
+            text-align: center;
+            border-top: 2px solid #ff9e64;
+        }
+
+        .location-name {
+            color: #ff9e64;
+            font-weight: bold;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .map-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        header {
+            text-align: center;
+            padding: 150px 0 40px;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            color: #ff9e64;
+            text-shadow: 0 0 15px rgba(255, 158, 100, 0.7);
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #a0a0a0;
+            max-width: 700px;
+            margin: 0 auto 30px;
+            line-height: 1.6;
+        }
+
+        .date-display {
+            background: rgba(30, 45, 70, 0.7);
+            display: inline-block;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            color: #ff9e64;
+            border: 1px solid rgba(255, 158, 100, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+            margin: 40px 0;
+        }
+
+        .card {
+            background: rgba(30, 45, 70, 0.7);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s ease;
+            border: 1px solid rgba(255, 158, 100, 0.2);
+            display: flex;
+            flex-direction: column;
+            min-height: 250px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, #ff9e64, #ff6b6b);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+            background: rgba(35, 55, 85, 0.8);
+        }
+
+        .card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 158, 100, 0.3);
+        }
+
+        .icon {
+            font-size: 2.8rem;
+            margin-right: 20px;
+            color: #ff9e64;
+            min-width: 60px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(255, 158, 100, 0.5);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            color: #ff9e64;
+            font-weight: 600;
+        }
+
+        .card-content {
+            flex-grow: 1;
+            font-size: 1.15rem;
+            line-height: 1.7;
+        }
+
+        .value {
+            font-weight: bold;
+            color: #ff9e64;
+        }
+
+        .progress-container {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            margin: 10px 0 15px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff9e64, #ff6b6b);
+            border-radius: 5px;
+            width: 0;
+            transition: width 1.5s ease;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin: 40px 0;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: rgba(255, 158, 100, 0.2);
+            color: #ff9e64;
+            border: 2px solid #ff9e64;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            background: rgba(255, 158, 100, 0.4);
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 158, 100, 0.4);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #a0a0a0;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .location-selector {
+            margin: 20px auto;
+            text-align: center;
+            max-width: 500px;
+        }
+
+        select {
+            background: rgba(30, 45, 70, 0.7);
+            color: #ff9e64;
+            border: 1px solid rgba(255, 158, 100, 0.3);
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            width: 80%;
+            max-width: 350px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        select:hover {
+            box-shadow: 0 0 10px rgba(255, 158, 100, 0.3);
+        }
+
+        .temp-gauge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .gauge {
+            flex-grow: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gauge-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4dabf7, #339af0);
+            border-radius: 4px;
+            width: 70%;
+        }
+
+        @media (max-width: 1100px) {
+            .panel-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .location-map {
+                position: relative;
+                top: 0;
+                left: 0;
+                width: 100%;
+                max-width: 300px;
+                margin: 0 auto 30px;
+            }
+            
+            header {
+                padding-top: 30px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .panel-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            animation: fadeIn 0.6s ease forwards;
+            opacity: 0;
+        }
+
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+        .card:nth-child(4) { animation-delay: 0.4s; }
+        .card:nth-child(5) { animation-delay: 0.5s; }
+        .card:nth-child(6) { animation-delay: 0.6s; }
+        .card:nth-child(7) { animation-delay: 0.7s; }
+        .card:nth-child(8) { animation-delay: 0.8s; }
+        .card:nth-child(9) { animation-delay: 0.9s; }
+        
+        /* Estilo para la bandera */
+        .flag {
+            display: inline-block;
+            width: 24px;
+            height: 16px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="30" height="20" fill="%23ce1126"/><rect width="30" height="10" fill="%23002d62"/><rect y="10" width="30" height="10" fill="%23ce1126"/><rect width="15" height="20" fill="%23002d62"/><path d="M9,8 L6,10 L9,12 Z" fill="white"/><circle cx="7.5" cy="10" r="3" fill="white"/></svg>');
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Mapa de Google en la esquina superior izquierda -->
+        <div class="location-map">
+            <iframe class="map-frame" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3784.058324726399!2d-69.9339197243402!3d18.48053798253945!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8eaf89c1092e0d2f%3A0x1ca5b6f8b1f4d0e5!2sLa%20Caleta%2C%20Santo%20Domingo%2C%20Rep%C3%BAblica%20Dominicana!5e0!3m2!1ses!2sus!4v1710000000000!5m2!1ses!2sus" allowfullscreen="" loading="lazy"></iframe>
+            <div class="map-overlay">
+                <div class="location-name">
+                    Andrés, La Caleta, Campo Lindo 
+                    <span class="flag"></span>
+                </div>
+            </div>
+        </div>
+
+        <header>
+            <h1><i class="fas fa-sun"></i> Panel Meteorológico</h1>
+            <p class="subtitle">Pronóstico del tiempo para Santo Domingo, República Dominicana</p>
+            <div class="date-display" id="currentDate"></div>
+            
+            <div class="location-selector">
+                <select id="locationSelect">
+                    <option value="santo_domingo" selected>Santo Domingo</option>
+                    <option value="santiago">Santiago de los Caballeros</option>
+                    <option value="puerto_plata">Puerto Plata</option>
+                    <option value="punta_cana">Punta Cana</option>
+                    <option value="la_romana">La Romana</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="panel-grid">
+            <!-- Pronóstico de lluvia -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon"><i class="fas fa-cloud-rain"></i></div>
+                    <h2 class="card-title">Pronóstico de lluvia</h2>
+                </div>
+                <div class="card-content">
+                    <p>Probabilidad: <span class="value" id="rainValue">25%</span></p>
+                    <p>Intensidad: <span class="value" id="rainIntensity">Ligera</span></p>
+                    <p>Período: <span class="value">Tarde</span></p>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="rainProgress"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Temperatura Máx y Mín -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon"><i class="fas fa-temperature-high"></i></div>
+                    <h2 class="card-title">Temperatura</h2>
+                </div>
+                <div class="card-content">
+                    <p>Máxima: <span class="value" id="maxTemp">32°C</span></p>
+                    <p>Mínima: <span class="value" id="minTemp">24°C</span></p>
+                    <p>Actual: <span class="value" id="currentTemp">28°C</span></p>
+                    <div class="temp-gauge">
+                        <span>24°</span>
+                        <div class="gauge">
+                            <div class="gauge-fill"></div>
+                        </div>
+                        <span>32°</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estado del tiempo -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon"><i class="fas fa-cloud-sun"></i></div>
+                    <h2 class="card-title">Estado del tiempo</h2>
+                </div>
+                <div class="card-content">
+                    <p>Condición: <span class="value" id="weatherCondition">Parcialmente nublado</span></p>
+                    <p>Presión: <span class="value">1012 hPa</span></p>
+                    <p>Visibilidad: <span class="value">15 km</span></p>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="cloudProgress"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Humedad y vientos -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon"><i class="fas fa-wind"></i></div>
+                    <h2 class="card-title">Humedad y vientos</h2>
+                </div>
+                <div class="card-content">
+                    <p>Humedad: <span class="value" id="humidityValue">75%</span></p>
+                    <p>Velocidad: <span class="value" id="windSpeed">18 km/h</span></p>
+                    <p>Dirección: <span class="value" id="windDirection">NE</span></p>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="windProgress"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estado del cielo -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon"><i class="fas fa-cloud"></i></div>
+                    <h2 class="card-title">Estado del cielo</h2>
+                </div>
+                <div class="card-content">
+                    <p>Cobertura nubosa: <span class="value" id="cloudCover">30%</span></p>
+                    <p>Visibilidad: <span class="value">Excelente</span></p>
+                    <p>Calidad del aire: <span class="value">Buena</span></p>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="skyProgress"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estado del sol -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon"><i class="fas fa-sun"></i></div>
+                    <h2 class="card-title">Estado del sol</h2>
+                </div>
+                <div class="card-content">
+                    <p>Amanecer: <span class="value">06:15</span></p>
+                    <p>Atardecer: <span class="value">19:05</span></p>
+                    <p>Índice UV: <span class="value" id="uvIndex">9 (Muy alto)</span></p>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="uvProgress"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sensación térmica -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon"><i class="fas fa-thermometer-half"></i></div>
+                    <h2 class="card-title">Sensación térmica</h2>
+                </div>
+                <div class="card-content">
+                    <p>Sensación actual: <span class="value" id="feelsLike">31°C</span></p>
+                    <p>Variación: <span class="value">+3°C</span></p>
+                    <p>Confort: <span class="value">Caluroso</span></p>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="feelsLikeProgress"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nivel de frío -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon"><i class="fas fa-snowflake"></i></div>
+                    <h2 class="card-title">Nivel de frío</h2>
+                </div>
+                <div class="card-content">
+                    <p>Sensación térmica: <span class="value" id="coldLevel">27°C</span></p>
+                    <p>Índice de frío: <span class="value">Bajo</span></p>
+                    <p>Recomendación: <span class="value">Ropa ligera</span></p>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="coldProgress"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pronóstico de nieve -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="icon"><i class="fas fa-snowman"></i></div>
+                    <h2 class="card-title">Pronóstico de nieve</h2>
+                </div>
+                <div class="card-content">
+                    <p>Probabilidad: <span class="value" id="snowChance">0%</span></p>
+                    <p>Acumulación: <span class="value">0 cm</span></p>
+                    <p>Altura nieve: <span class="value">0 cm</span></p>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="snowProgress"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="updateBtn"><i class="fas fa-sync-alt"></i> Actualizar Datos</button>
+            <button id="locationBtn"><i class="fas fa-location-dot"></i> Mi Ubicación</button>
+            <button id="downloadBtn"><i class="fas fa-download"></i> Descargar Reporte</button>
+        </div>
+
+        <footer>
+            <p>Panel Meteorológico para Andrés, La Caleta, Campo Lindo &copy; 2023</p>
+            <p>Datos meteorológicos para Santo Domingo, República Dominicana</p>
+        </footer>
+    </div>
+
+    <script>
+        // Función para formatear la fecha actual
+        function updateDate() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('es-ES', options);
+        }
+
+        // Datos específicos para Santo Domingo
+        function generateSantoDomingoWeather() {
+            return {
+                rain: Math.floor(Math.random() * 30),
+                rainIntensity: ['Ligera', 'Moderada', 'Fuerte'][Math.floor(Math.random() * 2)],
+                maxTemp: Math.floor(Math.random() * 5) + 30,
+                minTemp: Math.floor(Math.random() * 3) + 22,
+                currentTemp: Math.floor(Math.random() * 5) + 26,
+                weatherCondition: ['Despejado', 'Parcialmente nublado', 'Nublado', 'Lluvioso'][Math.floor(Math.random() * 4)],
+                humidity: Math.floor(Math.random() * 20) + 65,
+                windSpeed: Math.floor(Math.random() * 15) + 10,
+                windDirection: ['NE', 'E', 'SE', 'S'][Math.floor(Math.random() * 4)],
+                cloudCover: Math.floor(Math.random() * 40),
+                uvIndex: Math.floor(Math.random() * 3) + 8,
+                feelsLike: Math.floor(Math.random() * 5) + 28,
+                coldLevel: Math.floor(Math.random() * 5) + 25,
+                snowChance: 0
+            };
+        }
+
+        // Función para actualizar las barras de progreso
+        function updateProgressBars(weatherData) {
+            document.getElementById('rainProgress').style.width = weatherData.rain + '%';
+            document.getElementById('cloudProgress').style.width = weatherData.cloudCover + '%';
+            document.getElementById('windProgress').style.width = (weatherData.windSpeed / 30 * 100) + '%';
+            document.getElementById('skyProgress').style.width = (100 - weatherData.cloudCover) + '%';
+            document.getElementById('uvProgress').style.width = (weatherData.uvIndex / 11 * 100) + '%';
+            document.getElementById('feelsLikeProgress').style.width = ((weatherData.feelsLike - 22) / 15 * 100) + '%';
+            document.getElementById('coldProgress').style.width = ((weatherData.coldLevel - 20) / 15 * 100) + '%';
+            document.getElementById('snowProgress').style.width = weatherData.snowChance + '%';
+        }
+
+        // Función para actualizar la interfaz con nuevos datos
+        function updateWeatherUI() {
+            const weatherData = generateSantoDomingoWeather();
+            
+            document.getElementById('rainValue').textContent = weatherData.rain + '%';
+            document.getElementById('rainIntensity').textContent = weatherData.rainIntensity;
+            document.getElementById('maxTemp').textContent = weatherData.maxTemp + '°C';
+            document.getElementById('minTemp').textContent = weatherData.minTemp + '°C';
+            document.getElementById('currentTemp').textContent = weatherData.currentTemp + '°C';
+            document.getElementById('weatherCondition').textContent = weatherData.weatherCondition;
+            document.getElementById('humidityValue').textContent = weatherData.humidity + '%';
+            document.getElementById('windSpeed').textContent = weatherData.windSpeed + ' km/h';
+            document.getElementById('windDirection').textContent = weatherData.windDirection;
+            document.getElementById('cloudCover').textContent = weatherData.cloudCover + '%';
+            document.getElementById('uvIndex').textContent = weatherData.uvIndex + (weatherData.uvIndex > 8 ? ' (Muy alto)' : ' (Alto)');
+            document.getElementById('feelsLike').textContent = weatherData.feelsLike + '°C';
+            document.getElementById('coldLevel').textContent = weatherData.coldLevel + '°C';
+            document.getElementById('snowChance').textContent = weatherData.snowChance + '%';
+            
+            updateProgressBars(weatherData);
+        }
+
+        // Función para simular la detección de ubicación
+        function detectLocation() {
+            alert('Ubicación detectada: Andrés, La Caleta, Campo Lindo, Santo Domingo');
+        }
+
+        // Función para simular la descarga de un reporte
+        function downloadReport() {
+            alert('Reporte meteorológico para Santo Domingo descargado');
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDate();
+            updateWeatherUI();
+            
+            // Configurar botones
+            document.getElementById('updateBtn').addEventListener('click', function() {
+                updateWeatherUI();
+                // Efecto visual de actualización
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+                setTimeout(() => {
+                    this.innerHTML = '<i class="fas fa-sync-alt"></i> Actualizar Datos';
+                }, 1500);
+            });
+            
+            document.getElementById('locationBtn').addEventListener('click', detectLocation);
+            document.getElementById('downloadBtn').addEventListener('click', downloadReport);
+            
+            // Actualizar automáticamente cada 30 segundos
+            setInterval(updateWeatherUI, 30000);
+            
+            // Actualizar la hora cada minuto
+            setInterval(updateDate, 60000);
+        });
+    </script>
+</body>
+</html>
